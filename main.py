@@ -1,5 +1,6 @@
 import asyncio
 import subprocess
+from typing import Any, Union
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -7,7 +8,30 @@ load_dotenv()
 
 from deepgram import AsyncDeepgramClient
 from deepgram.core.events import EventType
-from deepgram.extensions.types.sockets import ListenV2SocketClientResponse
+from deepgram.listen.v2.types import (
+    ListenV2Connected,
+    ListenV2ConfigureFailure,
+    ListenV2FatalError,
+    ListenV2TurnInfo,
+)
+
+# The SDK's internal V2SocketClientResponse union includes typing.Any, which
+# causes construct_type to yield raw dicts for TurnInfo messages rather than
+# typed models. Accept both shapes here.
+ListenV2SocketClientResponse = Union[
+    ListenV2Connected,
+    ListenV2TurnInfo,
+    ListenV2ConfigureFailure,
+    ListenV2FatalError,
+    dict,
+]
+
+
+def _field(obj: Any, name: str, default: Any = None) -> Any:
+    """Read a field whether the message is a pydantic model or a plain dict."""
+    if isinstance(obj, dict):
+        return obj.get(name, default)
+    return getattr(obj, name, default)
 
 # URL for the realtime streaming audio to transcribe
 STREAM_URL = "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service"
@@ -47,18 +71,22 @@ async def main():
 
             # Define message handler function
             def on_message(message: ListenV2SocketClientResponse) -> None:
-                msg_type = getattr(message, "type", "Unknown")
+                msg_type = _field(message, "type", "Unknown")
 
                 # Show transcription results
-                if hasattr(message, 'transcript') and message.transcript:
-                    print(f"🎤 {message.transcript}")
+                transcript = _field(message, "transcript")
+                if transcript:
+                    print(f"🎤 {transcript}")
 
                     # Show word-level confidence with color coding
-                    if hasattr(message, 'words') and message.words:
+                    words = _field(message, "words") or []
+                    if words:
                         colored_words = []
-                        for word in message.words:
-                            color = get_confidence_color(word.confidence)
-                            colored_words.append(f"{color}{word.word}({word.confidence:.2f}){Colors.RESET}")
+                        for word in words:
+                            confidence = _field(word, "confidence", 0.0)
+                            text = _field(word, "word", "")
+                            color = get_confidence_color(confidence)
+                            colored_words.append(f"{color}{text}({confidence:.2f}){Colors.RESET}")
                         words_info = " | ".join(colored_words)
                         print(f"   📝 {words_info}")
                 elif msg_type == "Connected":
@@ -103,7 +131,7 @@ async def main():
                         break
 
                     # Send converted linear16 PCM data to Flux
-                    await connection._send(chunk)
+                    await connection.send_media(chunk)
 
                 await process.wait()
 
