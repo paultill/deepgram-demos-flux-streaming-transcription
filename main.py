@@ -1,6 +1,5 @@
 import asyncio
 import subprocess
-from typing import Any, Union
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -8,30 +7,6 @@ load_dotenv()
 
 from deepgram import AsyncDeepgramClient
 from deepgram.core.events import EventType
-from deepgram.listen.v2.types import (
-    ListenV2Connected,
-    ListenV2ConfigureFailure,
-    ListenV2FatalError,
-    ListenV2TurnInfo,
-)
-
-# The SDK's internal V2SocketClientResponse union includes typing.Any, which
-# causes construct_type to yield raw dicts for TurnInfo messages rather than
-# typed models. Accept both shapes here.
-ListenV2SocketClientResponse = Union[
-    ListenV2Connected,
-    ListenV2TurnInfo,
-    ListenV2ConfigureFailure,
-    ListenV2FatalError,
-    dict,
-]
-
-
-def _field(obj: Any, name: str, default: Any = None) -> Any:
-    """Read a field whether the message is a pydantic model or a plain dict."""
-    if isinstance(obj, dict):
-        return obj.get(name, default)
-    return getattr(obj, name, default)
 
 # URL for the realtime streaming audio to transcribe
 STREAM_URL = "http://stream.live.vc.bbcmedia.co.uk/bbc_world_service"
@@ -70,27 +45,24 @@ async def main():
         ) as connection:
 
             # Define message handler function
-            def on_message(message: ListenV2SocketClientResponse) -> None:
-                msg_type = _field(message, "type", "Unknown")
-
-                # Show transcription results
-                transcript = _field(message, "transcript")
-                if transcript:
-                    print(f"🎤 {transcript}")
-
-                    # Show word-level confidence with color coding
-                    words = _field(message, "words") or []
-                    if words:
-                        colored_words = []
-                        for word in words:
-                            confidence = _field(word, "confidence", 0.0)
-                            text = _field(word, "word", "")
-                            color = get_confidence_color(confidence)
-                            colored_words.append(f"{color}{text}({confidence:.2f}){Colors.RESET}")
-                        words_info = " | ".join(colored_words)
-                        print(f"   📝 {words_info}")
-                elif msg_type == "Connected":
+            def on_message(message: dict) -> None:
+                if message.get("type") == "Connected":
                     print(f"✅ Connected to Deepgram Flux - Ready for audio!")
+                    return
+
+                transcript = message.get("transcript")
+                if not transcript:
+                    return
+
+                print(f"🎤 {transcript}")
+
+                # Show word-level confidence with color coding
+                colored_words = [
+                    f"{get_confidence_color(w['confidence'])}{w['word']}({w['confidence']:.2f}){Colors.RESET}"
+                    for w in message.get("words", [])
+                ]
+                if colored_words:
+                    print(f"   📝 {' | '.join(colored_words)}")
 
             # Set up event handlers
             connection.on(EventType.OPEN, lambda _: print("Connection opened"))
