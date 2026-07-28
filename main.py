@@ -58,7 +58,7 @@ async def main():
 
                 # Show word-level confidence with color coding
                 colored_words = [
-                    f"{get_confidence_color(w['confidence'])}{w['word']}({w['confidence']:.2f}){Colors.RESET}"
+                    f"{get_confidence_color(w.get('confidence', 0))}{w.get('word', '')}({w.get('confidence', 0):.2f}){Colors.RESET}"
                     for w in message.get("words", [])
                 ]
                 if colored_words:

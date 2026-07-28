@@ -28,8 +28,10 @@ Before running this demo, make sure you have:
 
 2. **Install Python dependencies:**
    ```bash
-   pip install deepgram-sdk python-dotenv aiohttp ffmpeg-python
+   pip install "deepgram-sdk>=7,<8" python-dotenv
    ```
+
+   > The upper bound (`<8`) keeps `pip` on the 7.x line this demo is written against. A future major (8.0) may refactor SDK module paths and break the imports — bump this deliberately after updating `main.py`.
 
 3. **Set up your environment variables:**
 
