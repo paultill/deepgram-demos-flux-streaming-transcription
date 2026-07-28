@@ -12,7 +12,7 @@ A real-time streaming transcription demo using Deepgram's Flux model. This demo 
 
 Before running this demo, make sure you have:
 
-- **Python 3.8+** installed on your system
+- **Python 3.10+** installed on your system (required by `deepgram-sdk` 7.x)
 - **ffmpeg** installed for audio conversion
   - **macOS**: `brew install ffmpeg`
   - **Ubuntu/Debian**: `sudo apt update && sudo apt install ffmpeg`
@@ -22,7 +22,7 @@ Before running this demo, make sure you have:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/deepgram/deepgram-demos-flux-streaming-transcription.git
+   git clone https://github.com/deepgram-devs/deepgram-demos-flux-streaming-transcription.git
    cd deepgram-demos-flux-streaming-transcription
    ```
 
